@@ -28,7 +28,7 @@ class FRCAddress():
 		5: "Accelerometer", 
 		6: "Ultrasonic Sensor", 
 		7: "Gear Tooth Sensor", 
-		8: "PDP/PDM", 
+		8: "PDP", 
 		9: "Pneumatics Controller",
 		10: "Misc", 
 		11: "IO Breakout",
@@ -86,7 +86,18 @@ class FRCAddress():
 	ctrePDPControlMap = {
 		0x70: "Control1",
 	}
-
+	
+	ctrePCMStatusMap = {
+		0x50: "Status1",
+		0x51: "StatusSolFaults",
+		0x52: "StatusDebug",
+	}
+	
+	ctrePCMControlMap = {
+		0x70: "Control1",
+		0x71: "Control2",
+		0x73: "Control3",
+	}
 
 	def __init__(self, address):
 		self.address = address
@@ -102,6 +113,14 @@ class FRCAddress():
 		self.apiClass = (address >> 10) & 0x3F
 		self.apiIndex = (address >> 6) & 0xF
 		self.deviceNumber = (address >> 0) & 0x3F
+		
+	def manufacturerID(self, manufacturerString):
+		# build a reverse map to do the lookup
+		return dict((val, key) for (key, val) in FRCAddress.manufacturerCodeMap.items()).get(manufacturerString)
+	
+	def deviceTypeID(self, deviceTypeString):
+		# build a reverse map to do the lookup
+		return dict((val, key) for (key, val) in FRCAddress.deviceTypeMap.items()).get(deviceTypeString)
 		
 	def isBroadcast(self):
 		return (self.deviceType == 0 and self.manufacturerCode == 0 and self.apiClass == 0) or self.deviceNumber == 63
@@ -131,33 +150,41 @@ class FRCAddress():
 			return FRCAddress.manufacturerCodeMap.get(self.manufacturerCode, "UNKNOWN")
 			
 	def statusTypeString(self):
-		if self.deviceType == 2 and self.manufacturerCode == 4:
-			# CTRE motor controller
-			# Preserve just the API class and index, in place
-			ctreStatus = self.address & (0x3FF << 6)
-			return FRCAddress.ctreMotorStatusMap.get(ctreStatus, None)
-		elif self.deviceType == 8 and self.manufacturerCode == 4:
-			value = self.apiClass << 4 | self.apiIndex
-			return FRCAddress.ctrePDPStatusMap.get(value, None)
-		else:
-			return None
+		if self.manufacturerCode == self.manufacturerID("CTR Electronics"):
+			# CTRE
+			if self.deviceType == self.deviceTypeID("Motor Controller"):
+				# CTRE motor controller
+				# Preserve just the API class and index, in place
+				ctreStatus = self.address & (0x3FF << 6)
+				return FRCAddress.ctreMotorStatusMap.get(ctreStatus, None)
+			elif self.deviceType == self.deviceTypeID("PDP"):
+				# CTRE PDP
+				ctreStatus = self.apiClass << 4 | self.apiIndex
+				return FRCAddress.ctrePDPStatusMap.get(ctreStatus, None)
+			elif self.deviceType == self.deviceTypeID("Pneumatics Controller"):
+				# CTRE PCM
+				ctreStatus = self.apiClass << 4 | self.apiIndex
+				return FRCAddress.ctrePCMStatusMap.get(ctreStatus, None)
+		return None
 			
 	def controlTypeString(self):
-		if self.deviceType == 2 and self.manufacturerCode == 4:
-			# CTRE motor controller
-			# These constants have the manufacturer already in them
-			ctreControl = self.address & (0x1FFFF << 6)
-			return FRCAddress.ctreMotorControlMap.get(ctreControl, None)
-		elif self.deviceType == 8 and self.manufacturerCode == 4:
-			value = self.apiClass << 4 | self.apiIndex
-			return FRCAddress.ctrePDPControlMap.get(value, None)
-		else:
-			# Debugging
-			ctreControl = self.address & (0x3FF << 6)
-			if FRCAddress.ctreMotorControlMap.get(ctreControl, None) is not None:
-				print('Possible unrecognized control frame from {}:{}'.format(self.deviceType, self.manufacturerCode))
+		if self.manufacturerCode == self.manufacturerID("CTR Electronics"):
+			# CTRE
+			if self.deviceType == self.deviceTypeID("Motor Controller"):
+				# CTRE motor controller
+				# These constants have the manufacturer already in them
+				ctreControl = self.address & (0x1FFFF << 6)
+				return FRCAddress.ctreMotorControlMap.get(ctreControl, None)
+			elif self.deviceType == self.deviceTypeID("PDP"):
+				# CTRE PDP
+				ctreControl = self.apiClass << 4 | self.apiIndex
+				return FRCAddress.ctrePDPControlMap.get(ctreControl, None)
+			elif self.deviceType == self.deviceTypeID("Pneumatics Controller"):
+				# CTRE PCM
+				ctreControl = self.apiClass << 4 | self.apiIndex
+				return FRCAddress.ctrePCMControlMap.get(ctreControl, None)
 
-			return None
+		return None
 			
 			
 class FRCFrame:
