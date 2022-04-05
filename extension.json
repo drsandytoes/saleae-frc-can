@@ -1,0 +1,13 @@
+{
+  "name": "FRC-CAN",
+  "apiVersion": "1.0.0",
+  "author": "Michael Santos",
+  "version": "0.0.1",
+  "description": "HLA to identify FRC CAN frames",
+  "extensions": {
+    "FRC CAN": {
+      "type": "HighLevelAnalyzer",
+      "entryPoint": "CAN-FRC-HighLevelAnalyzer.Hla"
+    }
+  }
+}
